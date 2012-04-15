@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"   
+    xmlns:int="http://www.springframework.org/schema/integration"   
+    xmlns:int-jpa="http://www.springframework.org/schema/integration/jpa"      
+    xsi:schemaLocation=
+    "http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd   
+    http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.1.xsd
+    http://www.springframework.org/schema/integration/jpa http://www.springframework.org/schema/integration/jpa/spring-integration-jpa.xsd">
+    
+	<import resource="jpa-samples-common.xml"/>    
+    
+    <int:channel id="entityRequestChannel"/>
+    <int:channel id="entityResponseChannel"/>
+    
+    <int:channel id="jpaqlRequestChannel"/>
+    <int:channel id="jpaqlResponseChannel"/>
+    
+    <int:channel id="namedQueryRequestChannel"/>
+    <int:channel id="namedQueryResponseChannel"/>
+    
+    <int:gateway id="jpaOutboundGateway"
+    			service-interface="org.springframework.integration.outbound.test.JpaOutboundGatewayService">
+    	<int:method  	name="persistStudent"
+    					request-channel="entityRequestChannel"
+    					request-timeout="1000"
+    					reply-channel="entityResponseChannel"
+    					reply-timeout="5000"/>
+    					
+    	<int:method		name="updateLastNameUsingJpaQl"
+    					request-channel="jpaqlRequestChannel"
+    					request-timeout="1000"
+    					reply-channel="jpaqlResponseChannel"
+    					reply-timeout="1000"/>
+    					
+    	<int:method		name="updateLastNameUsingNamedQuery"
+    					request-channel="namedQueryRequestChannel"
+    					request-timeout="1000"
+    					reply-channel="namedQueryResponseChannel"
+    					reply-timeout="1000"/>										
+    </int:gateway>
+    
+    <int-jpa:outbound-gateway 	request-channel="entityRequestChannel"
+    							reply-channel="entityResponseChannel"
+    							entity-class="org.springframework.integration.jpa.test.entity.Student" 
+    							entity-manager="em"
+    							gateway-type="UPDATING"/>
+    
+    
+    
+    <int-jpa:outbound-gateway	request-channel="jpaqlRequestChannel"
+    							reply-channel="jpaqlResponseChannel"
+    							query="update Student s set s.lastName = :lastName where s.rollNumber = :rollNumber"
+    							entity-manager="em"
+    							gateway-type="UPDATING">
+    		<int-jpa:parameter name="lastName" expression="payload"/>
+    		<int-jpa:parameter name="rollNumber" expression="headers['rollNumber']"/>
+    </int-jpa:outbound-gateway>
+    
+    <int-jpa:outbound-gateway	request-channel="namedQueryRequestChannel"
+    							reply-channel="namedQueryResponseChannel"
+    							named-query="updateStudentByRollNumber"
+    							entity-manager="em"
+    							gateway-type="UPDATING">
+    		<int-jpa:parameter name="lastName" expression="payload"/>
+    		<int-jpa:parameter name="rollNumber" expression="headers['rollNumber']"/>
+    </int-jpa:outbound-gateway>
+    
+    
+ </beans>  
