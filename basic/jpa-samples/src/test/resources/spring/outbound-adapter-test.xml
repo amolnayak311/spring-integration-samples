@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"   
+    xmlns:int="http://www.springframework.org/schema/integration"   
+    xmlns:int-jpa="http://www.springframework.org/schema/integration/jpa"      
+    xsi:schemaLocation=
+    "http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd   
+    http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.1.xsd
+    http://www.springframework.org/schema/integration/jpa http://www.springframework.org/schema/integration/jpa/spring-integration-jpa.xsd">
+   
+ 	<import resource="jpa-samples-common.xml"/>
+	
+	<int:channel id="entityTypeChannel"/>
+	<int:channel id="jpaQlChannel"/>
+	<int:channel id="nativeQlChannel"/>
+	<int:channel id="namedQueryChannel"/>
+	
+	<int-jpa:outbound-channel-adapter channel="entityTypeChannel" 
+			entity-class="org.springframework.integration.jpa.test.entity.Student"
+			persist-mode="PERSIST"
+			entity-manager="em"/>
+			
+	<int-jpa:outbound-channel-adapter channel="jpaQlChannel"
+						query="update Student s set s.firstName = :firstName where s.rollNumber = :rollNumber"
+						entity-manager="em">							
+		<int-jpa:parameter name="firstName" expression="payload['firstName']"/>
+		<int-jpa:parameter name="rollNumber" expression="payload['rollNumber']"/>
+	</int-jpa:outbound-channel-adapter>
+	
+	<int-jpa:outbound-channel-adapter channel="nativeQlChannel"
+			query="insert into Student(firstName,lastUpdated) values (:lastName,:lastUpdated)"
+			native-query="true"
+			entity-manager="em">
+		<int-jpa:parameter name="lastName" expression="payload['updatedLastName']"/>
+		<int-jpa:parameter name="lastUpdated" expression="new java.util.Date()"/> 
+	</int-jpa:outbound-channel-adapter>	
+	
+	<int-jpa:outbound-channel-adapter channel="namedQueryChannel"
+			named-query="updateStudent"			
+			entity-manager="em">
+		<int-jpa:parameter name="lastName" expression="payload['updatedLastName']"/>
+		<int-jpa:parameter name="lastUpdated" expression="new java.util.Date()"/> 
+	</int-jpa:outbound-channel-adapter>	
+							
+
+</beans>

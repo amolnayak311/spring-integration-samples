@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"   
+    xmlns:int="http://www.springframework.org/schema/integration"   
+    xmlns:int-jpa="http://www.springframework.org/schema/integration/jpa"      
+    xsi:schemaLocation=
+    "http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd   
+    http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.1.xsd
+    http://www.springframework.org/schema/integration/jpa http://www.springframework.org/schema/integration/jpa/spring-integration-jpa.xsd">
+   
+   	<import resource="jpa-samples-common.xml"/>
+   	
+    <int:channel id="inboundChannelAdapterOne"/>
+    
+    <int-jpa:inbound-channel-adapter 	channel="inboundChannelAdapterOne"
+    									entity-manager="em"
+    									auto-startup="true"
+    									query="select s from Student s"
+    									expect-single-result="true"
+    									max-rows="1"    									
+    									delete-after-poll="true">
+    		<int:poller fixed-rate="2000" >
+    			<int:transactional propagation="REQUIRED" transaction-manager="transactionManager"/>
+    		</int:poller>							
+    </int-jpa:inbound-channel-adapter>									
+    									
+    									
+
+</beans>
