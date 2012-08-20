@@ -17,9 +17,13 @@ package org.springframework.integration.samples.tcpclientserver;
 
 import static org.junit.Assert.assertEquals;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.integration.ip.tcp.connection.AbstractServerConnectionFactory;
+import org.springframework.integration.samples.tcpclientserver.support.CustomTestContextLoader;
+import org.springframework.integration.samples.tcpclientserver.support.ServerUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -32,23 +36,28 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  * echo service and the echoed response comes back over tcp and is returned to
  * the test case for verification.
  *
- * The alternate configuration shows how the conversion service can be used
- * instead of explicit transformers to convert the byte array payloads to
+ * The test uses explicit transformers to convert the byte array payloads to
  * Strings.
  *
  * @author Gary Russell
  *
  */
 // This one uses transformers
-@ContextConfiguration("/META-INF/spring/integration/tcpClientServerDemo-context.xml")
-// This one uses the conversion service
-//@ContextConfiguration("/META-INF/spring/integration/tcpClientServerDemo-conversion-context.xml")
+@ContextConfiguration(loader=CustomTestContextLoader.class, locations={"/META-INF/spring/integration/tcpClientServerDemo-context.xml"})
 @RunWith(SpringJUnit4ClassRunner.class)
 @DirtiesContext
 public class TcpClientServerDemoTest {
 
 	@Autowired
 	SimpleGateway gw;
+
+	@Autowired
+	AbstractServerConnectionFactory crLfServer;
+
+	@Before
+	public void setup() {
+		ServerUtils.waitListening(this.crLfServer);
+	}
 
 	@Test
 	public void testHappyDay() {

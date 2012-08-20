@@ -26,14 +26,20 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.Socket;
 
+import org.apache.log4j.Logger;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.integration.Message;
 import org.springframework.integration.MessageChannel;
 import org.springframework.integration.core.SubscribableChannel;
 import org.springframework.integration.handler.AbstractReplyProducingMessageHandler;
+import org.springframework.integration.ip.tcp.connection.AbstractServerConnectionFactory;
+import org.springframework.integration.samples.tcpclientserver.support.CustomTestContextLoader;
+import org.springframework.integration.samples.tcpclientserver.support.ServerUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -44,77 +50,94 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  * the Java socket API on the front end (client) and the Spring Integration TCP inbound
  * gateway with the custom serializer/deserializers.
  *
- * @author: ceposta
+ * @author ceposta
+ * @author Gunnar Hillert
+ *
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = {"/META-INF/spring/integration/tcpServerCustomSerialize-context.xml"})
+@ContextConfiguration(loader=CustomTestContextLoader.class,
+	locations = {"/META-INF/spring/integration/tcpServerCustomSerialize-context.xml"})
 @DirtiesContext
 public class TcpServerCustomSerializerTest {
 
-    @Autowired
-    @Qualifier("incomingServerChannel")
-    MessageChannel incomingServerChannel;
+	private static final Logger LOGGER = Logger.getLogger(TcpServerCustomSerializerTest.class);
 
-    @Test
-    public void testHappyPath() {
+	@Autowired
+	@Qualifier("incomingServerChannel")
+	MessageChannel incomingServerChannel;
 
-        // add a listener to this channel, otherwise there is not one defined
-        // the reason we use a listener here is so we can assert truths on the
-        // message and/or payload
-        SubscribableChannel channel = (SubscribableChannel) incomingServerChannel;
-        channel.subscribe(new AbstractReplyProducingMessageHandler(){
+	@Value("${availableServerSocket}")
+	int availableServerSocket;
 
-            @Override
-            protected Object handleRequestMessage(Message<?> requestMessage) {
-                CustomOrder payload = (CustomOrder) requestMessage.getPayload();
+	@Autowired
+	AbstractServerConnectionFactory serverConnectionFactory;
 
-                // we assert during the processing of the messaging that the
-                // payload is just the content we wanted to send without the
-                // framing bytes (STX/ETX)
-                assertEquals(123, payload.getNumber());
-                assertEquals("PINGPONG02", payload.getSender());
-                assertEquals("You got it to work!", payload.getMessage());
-                return requestMessage;
-            }
-        });
+	@Before
+	public void setup() {
+		ServerUtils.waitListening(serverConnectionFactory);
+	}
 
-        String sourceMessage = "123PINGPONG02000019You got it to work!";
+	@Test
+	public void testHappyPath() {
 
+		// add a listener to this channel, otherwise there is not one defined
+		// the reason we use a listener here is so we can assert truths on the
+		// message and/or payload
+		SubscribableChannel channel = (SubscribableChannel) incomingServerChannel;
+		channel.subscribe(new AbstractReplyProducingMessageHandler(){
 
-        // use the java socket API to make the connection to the server
-        Socket socket = null;
-        Writer out = null;
-        BufferedReader in = null;
-        try {
-            socket = new Socket("localhost", 11111);
-            out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            out.write(sourceMessage);
-            out.flush();
+			@Override
+			protected Object handleRequestMessage(Message<?> requestMessage) {
+				CustomOrder payload = (CustomOrder) requestMessage.getPayload();
 
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            StringBuffer str = new StringBuffer();
+				// we assert during the processing of the messaging that the
+				// payload is just the content we wanted to send without the
+				// framing bytes (STX/ETX)
+				assertEquals(123, payload.getNumber());
+				assertEquals("PINGPONG02", payload.getSender());
+				assertEquals("You got it to work!", payload.getMessage());
+				return requestMessage;
+			}
+		});
 
-            int c;
-            while ((c = in.read()) != -1) {
-                str.append((char) c);
-            }
+		String sourceMessage = "123PINGPONG02000019You got it to work!";
 
-            String response = str.toString();
-            assertEquals(sourceMessage, response);
+		// use the java socket API to make the connection to the server
+		Socket socket = null;
+		Writer out = null;
+		BufferedReader in = null;
 
-        } catch (IOException e) {
-            fail("Test ended with an exception " + e.getMessage());
-        }
-        finally {
-            try {
-                socket.close();
-                out.close();
-                in.close();
+		try {
+			socket = new Socket("localhost", availableServerSocket);
+			out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+			out.write(sourceMessage);
+			out.flush();
 
-            } catch (Exception e) {
-                // swallow exception
-            }
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			StringBuffer str = new StringBuffer();
 
-        }
-    }
+			int c;
+			while ((c = in.read()) != -1) {
+				str.append((char) c);
+			}
+
+			String response = str.toString();
+			assertEquals(sourceMessage, response);
+
+		} catch (IOException e) {
+			LOGGER.error(e.getMessage(), e);
+			fail(String.format("Test (port: %s) ended with an exception: %s", availableServerSocket, e.getMessage()));
+		} finally {
+			try {
+				socket.close();
+				out.close();
+				in.close();
+
+			} catch (Exception e) {
+				// swallow exception
+			}
+
+		}
+	}
+
 }
